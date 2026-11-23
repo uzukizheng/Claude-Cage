@@ -3504,5 +3504,9 @@
   "Cage ID": "Aqoonsiga Cage",
   "Claude 邮箱": "Iimaylka Claude",
   "该账号命令名已被使用，请选择其他名称": "Magacan amarka akoonka hore ayaa loo isticmaalay. Dooro magac kale.",
-  "账号命令名须以字母或数字开头，最多 64 个字符，可含 -、_ 和 .。不能使用纯数字、内部 ID 或保留命令。": "Magaca amarka akoonku waa inuu ku bilaabmaa xaraf ama lambar, ugu badnaanna waa 64 xaraf. Wuxuu yeelan karaa -, _ iyo dhibic (.). Lama adeegsan karo tirooyin keliya, aqoonsi gudaha ah ama amar gaar loo haysto."
+  "账号命令名须以字母或数字开头，最多 64 个字符，可含 -、_ 和 .。不能使用纯数字、内部 ID 或保留命令。": "Magaca amarka akoonku waa inuu ku bilaabmaa xaraf ama lambar, ugu badnaanna waa 64 xaraf. Wuxuu yeelan karaa -, _ iyo dhibic (.). Lama adeegsan karo tirooyin keliya, aqoonsi gudaha ah ama amar gaar loo haysto.",
+  "使用本机 ClashX 分流": "Adeegso xeerarka ClashX ee kombiyuutarkan",
+  "环境出口 · 本机 ClashX": "Marinka deegaanka · ClashX maxalli ah",
+  "环境正在使用本机 ClashX": "Deegaanku wuxuu adeegsanayaa ClashX maxalli ah",
+  "切回所选节点": "Ku noqo barta la doortay"
 }

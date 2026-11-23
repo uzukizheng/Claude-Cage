@@ -122,6 +122,9 @@ func (s Store) resolveRoute(blocked map[string]string, minRelayNodes int) ([]Res
 		}
 		return out, nil
 	}
+	if err := s.validateHostClashX(); err != nil {
+		return nil, err
+	}
 	if _, ok := s.Find(s.Selected); !ok {
 		return nil, errors.New("请先选择有效的最终出口")
 	}

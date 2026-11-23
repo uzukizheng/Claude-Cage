@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -156,18 +157,22 @@ func (s *Server) proxyStatus(w http.ResponseWriter, r *http.Request) {
 			state, label = "migration_required", "需要迁移代理节点"
 		}
 	}
-	jsonReply(w, map[string]any{"route": route, "route_hops": routeHops, "route_error": routeError, "sources": sources, "selected": p.Selected, "port": p.Port, "running": running, "active": active, "state": state, "state_label": label, "network_open": state == "ready", "core_available": coreErr == nil, "core_error": coreError, "version": version.Version, "revision": p.Revision, "bootstrap_dns": strings.Join(p.NodeResolvers(), "、"), "udp_blocked": true, "ipv6_blocked": true})
+	jsonReply(w, map[string]any{"host_clashx": p.HostClashX, "host_clashx_available": runtime.GOOS == "darwin", "route": route, "route_hops": routeHops, "route_error": routeError, "sources": sources, "selected": p.Selected, "port": p.Port, "running": running, "active": active, "state": state, "state_label": label, "network_open": state == "ready", "core_available": coreErr == nil, "core_error": coreError, "version": version.Version, "revision": p.Revision, "bootstrap_dns": strings.Join(p.NodeResolvers(), "、"), "udp_blocked": true, "ipv6_blocked": true})
 }
 func (s *Server) proxyMutation(w http.ResponseWriter, r *http.Request) {
-	if r.PathValue("action") == "import-local" && !s.requireLocalConfigAccess(w, r) {
+	action := r.PathValue("action")
+	if action == "host-clashx" && runtime.GOOS != "darwin" {
+		http.NotFound(w, r)
+		return
+	}
+	if (action == "import-local" || action == "host-clashx") && !s.requireLocalConfigAccess(w, r) {
 		return
 	}
 	var input proxyInput
 	if !readJSON(w, r, &input, 12<<20) {
 		return
 	}
-	action := r.PathValue("action")
-	allowed := map[string]bool{"import": true, "import-local": true, "refresh": true, "edit": true, "edit-node": true, "delete": true, "select": true, "restart": true, "stop": true, "route": true}
+	allowed := map[string]bool{"host-clashx": true, "import": true, "import-local": true, "refresh": true, "edit": true, "edit-node": true, "delete": true, "select": true, "restart": true, "stop": true, "route": true}
 	if !allowed[action] {
 		http.NotFound(w, r)
 		return
@@ -349,7 +354,20 @@ func (s *Server) changeProxy(action string, in proxyInput, resumeVersion *uint64
 		}
 		return managedproxy.Stop(s.profile)
 	}
+	if action == "host-clashx" {
+		if p.HostClashX {
+			return nil
+		}
+		if err := cage.CheckClashX(ctx, cfg); err != nil {
+			return err
+		}
+		p.HostClashX = true
+		return s.applyProxy(p, cfg, resumeVersion, true)
+	}
 	if action == "select" || action == "restart" || action == "route" {
+		if action != "restart" {
+			p.HostClashX = false
+		}
 		if action == "route" {
 			if len(in.Hops) > 0 {
 				if err := p.SetRouteHops(in.Hops); err != nil {

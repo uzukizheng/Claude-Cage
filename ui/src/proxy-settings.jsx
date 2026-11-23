@@ -319,7 +319,7 @@ export function ProxySettings({ status, onApplied, onConfirm, onDirty, onSetupSt
   };
   const applyRoute = async (nextHops) => {
     if (
-      (!proxy.active && !needsMigration || Number(port) !== proxy.port) &&
+      (proxy.host_clashx || !proxy.active && !needsMigration || Number(port) !== proxy.port) &&
       status.vm_running &&
       !(await onConfirm({
         title: "启用内置代理并重启环境？",
@@ -1119,6 +1119,15 @@ export function ProxySettings({ status, onApplied, onConfirm, onDirty, onSetupSt
         </div>
       )}
       {setupStepsStrip}
+      {!initializing && getClientContext().mode === "local" && proxy.host_clashx_available && !proxy.host_clashx && (
+        <button type="button" disabled={busy || !active} onClick={async () => {
+          if (await onConfirm({
+            title: tr("使用本机 ClashX 分流"),
+            body: `ClashX HTTP 127.0.0.1:7890 · DNS 127.0.0.1:1053 · Rule\n${tr("当前终端会话将结束。请先保存文件，浏览器登录与项目文件会保留。")}`,
+            confirm: tr("使用本机 ClashX 分流"),
+          })) await mutate("host-clashx");
+        }}>{tr("使用本机 ClashX 分流")}</button>
+      )}
       {!initializing && getClientContext().mode === "local" && <LocalConfigImport busy={busy} onImport={id => mutate("import-local", { id })} />}
       {!initializing && helpSection}
       {(!initializing || needsMigration) && (
@@ -1126,13 +1135,13 @@ export function ProxySettings({ status, onApplied, onConfirm, onDirty, onSetupSt
           <Server size={22} />
           <div>
             <strong>
-              {needsMigration ? tr("代理链需要迁移") : selected ? tr("最终出口 · {0}", selected.name) : tr("尚未配置代理节点")}
+              {proxy.host_clashx ? tr("环境出口 · 本机 ClashX") : needsMigration ? tr("代理链需要迁移") : selected ? tr("最终出口 · {0}", selected.name) : tr("尚未配置代理节点")}
             </strong>
             {needsMigration ? (
               <span className="proxy-current-route">
                 {savedHops.map((hop, i) => hopSummaryText(hop, i, savedHops, false)).join(" → ")}
               </span>
-            ) : savedHops.length > 1 && (
+            ) : !proxy.host_clashx && savedHops.length > 1 && (
               <span className="proxy-current-route">
                 {tr("当前链路：{0}", savedHops.map((hop, i) => hopSummaryText(hop, i, savedHops, true)).join(" → "))}
               </span>
@@ -1552,9 +1561,11 @@ export function ProxySettings({ status, onApplied, onConfirm, onDirty, onSetupSt
                               </>
                             )
                             : tr("链路测速失败")
-                          : active
-                            ? tr("当前配置已应用")
-                            : tr("选择完成后应用代理")}
+                          : proxy.host_clashx
+                            ? tr("环境正在使用本机 ClashX")
+                            : active
+                              ? tr("当前配置已应用")
+                              : tr("选择完成后应用代理")}
                 </span>
                 <div>
                   {routeDraft !== null && (
@@ -1597,7 +1608,7 @@ export function ProxySettings({ status, onApplied, onConfirm, onDirty, onSetupSt
                     ) : (
                       <Check size={14} />
                     )}
-                    {routeChanged || !active ? tr("应用代理") : tr("重新应用")}
+                    {proxy.host_clashx ? tr("切回所选节点") : routeChanged || !active ? tr("应用代理") : tr("重新应用")}
                   </button>
                 </div>
               </div>

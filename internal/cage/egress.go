@@ -19,6 +19,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/sylvinus/agent-vm/internal/diagnostics"
+	"github.com/sylvinus/agent-vm/internal/managedproxy"
 	"github.com/sylvinus/agent-vm/internal/netguard"
 	"github.com/sylvinus/agent-vm/internal/usererror"
 	"golang.org/x/net/proxy"
@@ -110,7 +111,26 @@ func (e *Egress) wrapConn(conn net.Conn) net.Conn {
 
 func (e *Egress) Allows(network string, dst netip.AddrPort) bool {
 	// UDP and ICMP have no fallback. Guest DNS uses the dedicated DoH path.
-	return network == "tcp" && dst.Addr().Unmap().Is4() && e.public.Allows(network, dst)
+	return network == "tcp" && dst.Addr().Unmap().Is4() && (e.allowsClashXPrivate(dst) || e.public.Allows(network, dst))
+}
+
+var clashXPrivateNetworks = []netip.Prefix{
+	netip.MustParsePrefix("10.0.0.0/8"),
+	netip.MustParsePrefix("172.16.0.0/12"),
+	netip.MustParsePrefix("192.168.0.0/16"),
+}
+
+func (e *Egress) allowsClashXPrivate(dst netip.AddrPort) bool {
+	if e.upstream == nil || e.upstream.String() != managedproxy.HostClashXURL {
+		return false
+	}
+	address := dst.Addr().Unmap()
+	for _, network := range clashXPrivateNetworks {
+		if network.Contains(address) {
+			return true
+		}
+	}
+	return false
 }
 
 type bufferedConn struct {
@@ -240,6 +260,12 @@ func (e *Egress) ExchangeDNS(ctx context.Context, q *dns.Msg) (*dns.Msg, error) 
 			r.RecursionAvailable = true
 			return r, nil
 		}
+	}
+	// ClashX's DNS mapping cache remembers which name produced a real IP.
+	// Pass only approved IPs to HTTP CONNECT; ClashX recovers the name for
+	// rule matching without accepting unverified guest-supplied SNI.
+	if e.upstream.String() == managedproxy.HostClashXURL {
+		return e.clashXDNS(ctx, q)
 	}
 	// RFC 8484 section 4.1: DoH requests should carry ID 0 on the wire while
 	// preserving the guest query's original ID in the returned reply.
@@ -408,4 +434,37 @@ func (e *Egress) exchangeDNSOnce(ctx context.Context, endpoint string, origID ui
 	}
 	r.Id = origID
 	return r, false, "", nil
+}
+
+// ClashX 1.18 serves DNS over UDP. This host-side channel is part of the
+// explicitly selected proxy; the guest cannot choose its address or port.
+func (e *Egress) clashXDNS(ctx context.Context, q *dns.Msg) (*dns.Msg, error) {
+	if len(q.Question) != 1 || q.Opcode != dns.OpcodeQuery || q.Response {
+		return nil, errors.New("invalid DNS query")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	c, err := e.connect.DialContext(ctx, "udp", "127.0.0.1:1053")
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	stop := context.AfterFunc(ctx, func() { _ = c.Close() })
+	defer stop()
+	deadline, _ := ctx.Deadline()
+	if err = c.SetDeadline(deadline); err != nil {
+		return nil, err
+	}
+	dc := &dns.Conn{Conn: c, UDPSize: dns.MaxMsgSize}
+	if err = dc.WriteMsg(q); err != nil {
+		return nil, err
+	}
+	r, err := dc.ReadMsg()
+	if err != nil {
+		return nil, err
+	}
+	if !r.Response || r.Id != q.Id || len(r.Question) != 1 || r.Question[0] != q.Question[0] {
+		return nil, errors.New("mismatched ClashX DNS response")
+	}
+	return r, nil
 }

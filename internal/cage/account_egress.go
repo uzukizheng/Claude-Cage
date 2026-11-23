@@ -66,7 +66,7 @@ func (m *nodeListeners) prepare(id string) error {
 	if err != nil {
 		return err
 	}
-	if id != store.Selected {
+	if id != store.ExitPolicyKey() {
 		policy, saved := store.ExitPolicies[id]
 		if !saved {
 			policy = exitpolicy.Policy{Mode: cfg.ExitPolicy.Mode, Scope: cfg.ExitPolicy.Scope}.Normalized()

@@ -13,23 +13,23 @@ func selectProxyExitPolicy(next *managedproxy.Store, previous managedproxy.Store
 		policies[id] = policy
 	}
 	next.ExitPolicies = policies
-	_, owned := previous.ExitPolicies[previous.Selected]
+	_, owned := previous.ExitPolicies[previous.ExitPolicyKey()]
 	if owned {
-		policies[previous.Selected] = active
+		policies[previous.ExitPolicyKey()] = active
 	}
 	if !explicit {
 		return active
 	}
-	if previous.Selected == next.Selected && owned {
+	if previous.ExitPolicyKey() == next.ExitPolicyKey() && owned {
 		return active
 	}
-	policy, exists := policies[next.Selected]
+	policy, exists := policies[next.ExitPolicyKey()]
 	if !exists {
 		// Legacy global anchors cannot be assigned to a node whose identity was
 		// never recorded. Keep the selected mode and scope for its first binding.
 		policy = cage.ExitPolicy{Mode: active.Mode, Scope: active.Scope}.Normalized()
 	}
-	policies[next.Selected] = policy
+	policies[next.ExitPolicyKey()] = policy
 	return policy
 }
 
@@ -47,7 +47,7 @@ func (s *Server) saveExitPolicyConfig(cfg cage.Config) error {
 	if p.ExitPolicies == nil {
 		p.ExitPolicies = map[string]cage.ExitPolicy{}
 	}
-	p.ExitPolicies[p.Selected] = cfg.ExitPolicy
+	p.ExitPolicies[p.ExitPolicyKey()] = cfg.ExitPolicy
 	if err := writePrivate(s.configPath, cfg); err != nil {
 		return err
 	}

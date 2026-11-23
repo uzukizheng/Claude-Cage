@@ -22,6 +22,25 @@ Surge 配置读取 `[Proxy]` 和 `[Proxy Group]` 中的节点，跟随同目录�
 
 自动查找限于软件常用的数据目录。如果检测到 `FlClash for oixCloud` 等使用 `age` 加密保存的配置文件，Cage 不会解密私有配置，会在列表中标出客户端名称及不可直接导入的原因；请先从原软件或服务商导出含节点的明文 Clash/Mihomo 配置，再通过“添加来源”导入或手动添加节点。Windows 上的 FlClash for oixCloud 也可能装在 `%APPDATA%\com.follow\FlClash for oixCloud`，配置以 `FLEN` 开头的私有加密格式保存，Cage 同样只标出不可直接导入的原因，请从服务商用户中心或客户端的导出入口取得兼容的 Clash/Mihomo 订阅或 YAML。Windows 上的 SakuraCat（`%APPDATA%\SakuraCat\SakuraCat`）以私有格式保存配置，Cage 只会在列表中标出它并说明迁移方法：通过 SakuraCat 支持的导出入口或服务商用户中心取得个人 Clash/Mihomo 订阅、YAML 或节点分享链接，再通过“添加来源”导入；它的本机代理端口不能直接作为节点。便携版、自定义目录或其他格式同样可通过“添加来源”导入。远程连接不读取服务器上的代理软件配置；请手动上传要使用的配置。
 
+## macOS 使用本机 ClashX 分流（自定义构建）
+
+在 ClashX 中选择要使用的配置，打开“规则判断”，确认 HTTP 或混合端口是 7890。为使客机按域名分流，让 ClashX 的 DNS 返回真实 IP 并记录域名，监听 `127.0.0.1:1053`（UDP）。例如：
+
+```yaml
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  enhanced-mode: fake-ip
+  fake-ip-filter:
+    - "+.*"
+  nameserver:
+    - https://1.1.1.1/dns-query
+```
+
+ClashX 经典版支持 `fake-ip`。这里的通配过滤器让各域名取得真实的 A 记录，并使用内核的域名映射缓存。可根据网络选择能解析目标域名的上游 DNS。Cage 使用 ClashX 返回的真实 IP，ClashX 根据 DNS 缓存匹配域名规则。多个域名共用 IP、应用自带 DNS 或 DNS 缓存过期时，按 IP 建连的应用可能无法匹配预期域名规则。本机 ClashX 模式下，Cage 将 `10.0.0.0/8`、`172.16.0.0/12` 和 `192.168.0.0/16` 的 TCP 连接交给 ClashX。ClashX 的连接记录显示每次实际命中的规则和出口。
+
+已有受管节点的用户在本机桌面“设置 → 网络与代理”点击“使用本机 ClashX 分流”。Cage 先验证 ClashX 的 DNS 和 HTTPS，再切换环境出口。工作环境正在运行时切换会重启客机，请先保存终端工作。为账号单独绑定的节点继续走该节点。要恢复环境原来的出口，在节点页选择“切回所选节点”。
+
 ## 导入自己的代理
 
 入口是首页“配置网络与代理”，或“设置 → 网络与代理”。点击“添加来源”，选择导入方式：

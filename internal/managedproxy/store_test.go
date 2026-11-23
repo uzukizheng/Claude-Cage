@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -420,5 +421,53 @@ func TestRuntimeIPv6FollowsSelectedRouteOnly(t *testing.T) {
 	s.Selected, s.Chain = ids["v4"], []string{ids["v4"]}
 	if topIPv6(t, s) {
 		t.Fatal("explicit chain without IPv6 literals must keep ipv6 off")
+	}
+}
+
+func TestHostClashXSelectionSurvivesReload(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS transport")
+	}
+	dir := t.TempDir()
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Import("saved", "", []byte(testNodes), "saved", 0, ""); err != nil {
+		t.Fatal(err)
+	}
+	s.Selected = s.Sources[0].Nodes[0].ID
+	internal := s.Endpoint()
+	s.Revision = Token()
+	s.HostClashX = true
+	if err = s.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Applied(dir, HostClashXURL, s.Revision)
+	if err != nil || loaded.ExitPolicyKey() == s.Selected {
+		t.Fatalf("failed to restore distinct host route: %v", err)
+	}
+	if _, err = Applied(dir, internal, s.Revision); err == nil {
+		t.Fatal("accepted stale environment endpoint")
+	}
+	ep, err := loaded.NodeEndpoint(s.Selected)
+	if err != nil || ep == HostClashXURL {
+		t.Fatalf("account binding changed: %v", err)
+	}
+	loaded.Port = 7890
+	if _, err = loaded.Route(); err == nil {
+		t.Fatal("accepted colliding listener")
+	}
+	loaded.RouteHops = []RouteHop{{NodeID: loaded.Selected}}
+	if _, err = loaded.ResolveRoute(); err == nil {
+		t.Fatal("structured route accepted colliding listener")
+	}
+	loaded.Port = s.Port
+	if _, err = loaded.ResolveRoute(); err != nil {
+		t.Fatalf("structured route with ClashX enabled: %v", err)
+	}
+	loaded.HostClashX = false
+	if loaded.Endpoint() != internal || loaded.ExitPolicyKey() != s.Selected {
+		t.Fatal("local node route not restored")
 	}
 }

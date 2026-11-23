@@ -488,6 +488,20 @@ func traceIP(body string) string {
 	return ip
 }
 
+// CheckClashX verifies both listeners before switching would stop a running VM.
+func CheckClashX(ctx context.Context, cfg Config) error {
+	cfg.ProxyURL = managedproxy.HostClashXURL
+	e, err := NewEgress(cfg)
+	if err != nil {
+		return err
+	}
+	if err := probeDNS(ctx, e); err != nil {
+		return fmt.Errorf("请检查 ClashX 的 DNS（127.0.0.1:1053，须返回真实公网 IPv4）：%w", err)
+	}
+	_, err = probeExitIP(ctx, e, exitProbeReachabilityURL)
+	return err
+}
+
 func probeDNS(ctx context.Context, e *Egress) error {
 	q := new(dns.Msg)
 	q.SetQuestion("example.com.", dns.TypeA)
@@ -500,6 +514,12 @@ func probeDNS(ctx context.Context, e *Egress) error {
 	}
 	for _, answer := range r.Answer {
 		if a, ok := answer.(*dns.A); ok && a.A.IsGlobalUnicast() && !a.A.IsPrivate() {
+			if e.upstream.String() == managedproxy.HostClashXURL {
+				ip, ok := netip.AddrFromSlice(a.A)
+				if !ok || !e.Allows("tcp", netip.AddrPortFrom(ip.Unmap(), 443)) {
+					continue
+				}
+			}
 			return nil
 		}
 	}

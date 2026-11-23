@@ -3504,5 +3504,9 @@
   "Cage ID": "ID de Cage",
   "Claude 邮箱": "Correo de Claude",
   "该账号命令名已被使用，请选择其他名称": "Este nombre de comando ya está en uso. Elige otro.",
-  "账号命令名须以字母或数字开头，最多 64 个字符，可含 -、_ 和 .。不能使用纯数字、内部 ID 或保留命令。": "El nombre de comando de la cuenta debe comenzar por una letra o un dígito y tener como máximo 64 caracteres. Puede incluir guiones (-), guiones bajos (_) y puntos (.). No se admiten nombres compuestos solo por dígitos, identificadores internos ni comandos reservados."
+  "账号命令名须以字母或数字开头，最多 64 个字符，可含 -、_ 和 .。不能使用纯数字、内部 ID 或保留命令。": "El nombre de comando de la cuenta debe comenzar por una letra o un dígito y tener como máximo 64 caracteres. Puede incluir guiones (-), guiones bajos (_) y puntos (.). No se admiten nombres compuestos solo por dígitos, identificadores internos ni comandos reservados.",
+  "使用本机 ClashX 分流": "Usar las reglas del ClashX local",
+  "环境出口 · 本机 ClashX": "Salida del entorno · ClashX local",
+  "环境正在使用本机 ClashX": "El entorno usa el ClashX local",
+  "切回所选节点": "Volver al nodo seleccionado"
 }
