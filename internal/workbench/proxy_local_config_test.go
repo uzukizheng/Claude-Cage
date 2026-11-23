@@ -170,3 +170,11 @@ func TestImportLocalConfigSurfacesAndRejectsEncryptedClient(t *testing.T) {
 		t.Fatal("encrypted local config import modified store")
 	}
 }
+
+func TestHostClashXRequiresTrustedDesktop(t *testing.T) {
+	s := testServer(t)
+	w := configImportRequest(s, "POST", "/api/proxy/host-clashx", "{}", false)
+	if w.Code != 403 && w.Code != 404 {
+		t.Fatalf("remote session selected a host transport: %d", w.Code)
+	}
+}

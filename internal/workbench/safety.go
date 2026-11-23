@@ -22,6 +22,7 @@ import (
 	"github.com/sylvinus/agent-vm/internal/containerenv"
 	"github.com/sylvinus/agent-vm/internal/diagnostics"
 	"github.com/sylvinus/agent-vm/internal/exitpolicy"
+	"github.com/sylvinus/agent-vm/internal/managedproxy"
 	"github.com/sylvinus/agent-vm/internal/paths"
 	"github.com/sylvinus/agent-vm/internal/usererror"
 	"go.yaml.in/yaml/v3"
@@ -858,7 +859,11 @@ func (s *Server) runSafetyCheck() (returned error) {
 	dnsBypass, dnsBypassConfirmed := dnsBypassIssue(boundary)
 	dnsConstrained := boundaryErr == nil && !boundary.PublicDNSAnswered && after.Counters.DNSDenied > state.Counters.DNSDenied && dnsBypass == ""
 	if networkErr == nil && dnsConstrained && network.DNS.Status == 200 && normalState.Counters.ProbeDNS > after.Counters.ProbeDNS {
-		set("dns_transport", cage.CheckPassed, "检查期间公共解析被拒绝；固定 DNS 查询经指定 DoH 与代理完成；客机解析器仅指向环境内地址，到公共 DNS 的 UDP/53、TCP/53 与 DoT/853 直连均未绕过网关", "")
+		resolver := "指定 DoH 与代理"
+		if cfg.ProxyURL == managedproxy.HostClashXURL {
+			resolver = "本机 ClashX DNS"
+		}
+		set("dns_transport", cage.CheckPassed, "检查期间公共解析被拒绝；固定 DNS 查询经"+resolver+"完成；客机解析器仅指向环境内地址，到公共 DNS 的 UDP/53、TCP/53 与 DoT/853 直连均未绕过网关", "")
 	} else {
 		result, evidence := cage.CheckUnknown, "公共解析拒绝记录或加密 DNS 查询证据不完整"
 		if boundaryErr == nil && dnsBypass != "" {

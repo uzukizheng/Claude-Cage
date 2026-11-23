@@ -24,6 +24,10 @@ import (
 )
 
 const Group = "CAGE"
+
+// HostClashXURL is an administrator-selected environment transport. Imported
+// proxy records cannot request it or grant access to any other host listener.
+const HostClashXURL = "http://127.0.0.1:7890"
 const MaxImport = 8 << 20
 const maxStoreSize = 32 << 20
 
@@ -47,6 +51,7 @@ type Source struct {
 	NodeDNS   []string    `json:"node_dns,omitempty"`
 }
 type Store struct {
+	HostClashX   bool                         `json:"host_clashx,omitempty"`
 	Version      int                          `json:"version"`
 	Port         int                          `json:"port"`
 	Auth         string                       `json:"auth"`
@@ -201,7 +206,19 @@ func (s Store) Save(profile string) error {
 	}
 	return Write(filepath.Join(Dir(profile), "sources.json"), b)
 }
-func (s Store) Endpoint() string { return fmt.Sprintf("socks5://cage:%s@127.0.0.1:%d", s.Auth, s.Port) }
+func (s Store) Endpoint() string {
+	if s.HostClashX {
+		return HostClashXURL
+	}
+	return fmt.Sprintf("socks5://cage:%s@127.0.0.1:%d", s.Auth, s.Port)
+}
+
+func (s Store) ExitPolicyKey() string {
+	if s.HostClashX {
+		return "host-clashx"
+	}
+	return s.Selected
+}
 func (s Store) Find(id string) (Node, bool) {
 	for _, src := range s.Sources {
 		for _, n := range src.Nodes {
@@ -320,6 +337,9 @@ func (s Store) Route() ([]string, error) {
 }
 
 func (s Store) route(blocked map[string]string) ([]string, error) {
+	if s.HostClashX && (runtime.GOOS != "darwin" || s.Port == 7890) {
+		return nil, errors.New("本机 ClashX 需要 macOS，并且 Cage 的独立端口不能是 7890")
+	}
 	if _, ok := s.Find(s.Selected); !ok {
 		return nil, errors.New("请先选择有效的最终出口")
 	}
