@@ -80,6 +80,9 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/tailnet/go.sum
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
@@ -88,6 +91,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Build and check the application
         env:
+          GOTOOLCHAIN: auto
           CAGE_SIGNING_IDENTITY: '-'
           CAGE_BUILD_OUTPUT: ${{ runner.temp }}/Cage ClashX.app
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
